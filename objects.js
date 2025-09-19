@@ -1,6 +1,5 @@
 // objects.js - Game objects data
 const objects = {
-    const items = {
     paper: {
         name: "Paper",
         image: "https://cdn-icons-png.flaticon.com/512/4334/4334402.png",
