@@ -1,4 +1,4 @@
-// game.js - Desultory Memory game logic
+// game.js - Desultory Memory game logic (recipe-based)
 let gameTimer = 0;
 let timerInterval = null;
 let currentObjectIndex = 0;
@@ -7,17 +7,17 @@ let clickCounts = {};
 let completionHistory = [];
 let startTime = 0;
 let currentStartTime = 0;
+let selectedObjects = new Set();
 
 function initGame() {
-    // Get objects that have recipes (not empty arrays)
     const objectsWithRecipes = Object.keys(objects).filter(key => objects[key].recipe.length > 0);
-    objectSequence = shuffleArray(objectsWithRecipes).slice(0, 10); // Take first 10 objects
-    
+    objectSequence = shuffleArray(objectsWithRecipes).slice(0, 10);
+
     currentObjectIndex = 0;
     gameTimer = 0;
     clickCounts = {};
     completionHistory = [];
-    
+
     createObjectGrid();
     showCurrentTarget();
     startTimer();
@@ -43,15 +43,15 @@ function createObjectGrid() {
         objectElement.className = 'object-item';
         objectElement.setAttribute('data-object', objectKey);
         objectElement.onclick = () => clickObject(objectKey);
-        
+
         clickCounts[objectKey] = 0;
-        
+
         objectElement.innerHTML = `
             <img src="${obj.image}" alt="${obj.name}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjNjY2IiByeD0iOCIvPgo8dGV4dCB4PSIzMCIgeT0iMzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIzMiIgZmlsbD0iI2NjYyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Pz88L3RleHQ+Cjwvc3ZnPg=='">
             <span>${obj.name}</span>
             <div class="click-count">0</div>
         `;
-        
+
         objectsGrid.appendChild(objectElement);
     });
 }
@@ -66,22 +66,44 @@ function showCurrentTarget() {
     const target = objects[targetKey];
     document.getElementById('targetIcon').src = target.image;
     document.getElementById('targetName').textContent = target.name;
-    document.getElementById('targetRecipe').textContent = `Recipe: ${target.recipe.join(' + ')}`;
+    document.getElementById('targetRecipe').textContent = ''; // Hide recipe from player
+
+    selectedObjects = new Set();
+    document.querySelectorAll('.object-item').forEach(el => el.classList.remove('clicked', 'correct', 'incorrect'));
 }
 
 function clickObject(objectKey) {
     const objectElement = document.querySelector(`[data-object='${objectKey}']`);
+    if (!objectElement) return;
+
     clickCounts[objectKey]++;
     objectElement.classList.add('clicked');
     objectElement.querySelector('.click-count').textContent = clickCounts[objectKey];
 
+    selectedObjects.add(objectKey);
+
     const targetKey = objectSequence[currentObjectIndex];
-    if (objectKey === targetKey) {
-        objectElement.classList.add('correct');
-        handleCorrectSelection(objectKey);
-    } else {
-        objectElement.classList.add('incorrect');
-        setTimeout(() => objectElement.classList.remove('incorrect'), 500);
+    const recipe = objects[targetKey].recipe;
+
+    if (selectedObjects.size === recipe.length) {
+        const correct = recipe.every(r => selectedObjects.has(r));
+        if (correct) {
+            recipe.forEach(r => {
+                const el = document.querySelector(`[data-object='${r}']`);
+                if (el) el.classList.add('correct');
+            });
+            handleCorrectSelection(targetKey);
+        } else {
+            // wrong selection → mark incorrect briefly and reset
+            selectedObjects.forEach(sel => {
+                const el = document.querySelector(`[data-object='${sel}']`);
+                if (el) el.classList.add('incorrect');
+            });
+            setTimeout(() => {
+                selectedObjects.clear();
+                document.querySelectorAll('.object-item').forEach(el => el.classList.remove('clicked', 'incorrect'));
+            }, 800);
+        }
     }
 }
 
@@ -92,7 +114,7 @@ function handleCorrectSelection(objectKey) {
 
     currentObjectIndex++;
     currentStartTime = Date.now();
-    showCurrentTarget();
+    setTimeout(showCurrentTarget, 800);
 }
 
 function updateHistory() {
